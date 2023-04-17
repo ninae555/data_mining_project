@@ -2,50 +2,112 @@
 # To add a new markdown cell, type '#%% [markdown]'
 
 #%%
-
 import pandas as pd
 import geopandas as gpd
 from geopy.geocoders import Nominatim
-from shapely.geometry import Point
 from geopy.distance import distance
+import folium
 
-# Load building data and create GeoDataFrame
-building = pd.read_csv('BpData_after_cleaning_without_Nan.csv')
-
-# Get address from user and geocode it
-gdf = gpd.GeoDataFrame(building, geometry=gpd.points_from_xy(building.LONGITUDE, building.LATITUDE))
-geolocator = Nominatim(user_agent='my_app')
-address = input ("Enter the address: ")
+df = pd.read_csv('/Users/coramartin/Documents/GitHub/data_mining_project/Data/BpData_after_cleaning_with_Nan.csv')
+df['PERMIT_SUBTYPE_NAME'] = df['PERMIT_SUBTYPE_NAME'].replace(['MISCELLANEOUS', 'nan', 'PERMIT'], 'MISCELLANEOUS')
+gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.LONGITUDE, df.LATITUDE))
+geolocator = Nominatim (user_agent='my app')
+address = input("Enter the address: ")
 location = geolocator.geocode(address)
 input_latitude = location.latitude
 input_longitude = location.longitude
-input_point =(input_longitude, input_latitude)
+input_point = (input_latitude, input_longitude)
 
-# Define the permit noise levels dictionary
-permit_noise_levels = {'DEMOLITION': 4, 'EXCAVATION ONLY': 4, 'SHEETING AND SHORING': 4, 'RAZE': 4,
-                       'NEW BUILDING': 4, 'BUILDING': 4, 'SPECIAL BUILDING': 4, 'CIVIL PLANS': 4,
-                       'ELEVATOR - REPAIR': 3, 'ELEVATOR - NEW': 3, 'ELEVATOR - ALTERATION': 3,
-                       'MECHANICAL': 3, 'DECK': 3, 'GARAGE': 3, 'SWIMMING POOL': 3,
-                       'ELECTRICAL - HEAVY UP': 2, 'BOILER': 2, 'PLUMBING AND GAS': 2,
-                       'FOUNDATION ONLY': 2, 'ADDITION ALTERATION REPAIR': 2, 'ELECTRICAL': 2,
-                       'ELECTRICAL - GENERAL': 2, 'SOLAR SYSTEM': 2, 'GAS FITTING': 2,
-                       'TENANT LAYOUT': 2, 'FENCE': 2, 'AWNING': 1, 'RETAINING WALL': 1,
-                       'SIGN': 1, 'SHED': 1}
+#%%
+# See Annex A for a categorization of construction based off of noise
+# NOISE SCORE
+distances = gdf['geometry'].apply(lambda x: distance(input_point, (x.y, x.x)).feet)
+nearby_gdf = gdf[distances <= 200]
+permit_subtype_counts = nearby_gdf["PERMIT_SUBTYPE_NAME"].value_counts()
+print("The permits within a radius of 200 feet from your property include: \n", permit_subtype_counts.to_string(header=False))
 
-# Define the permit_count function to count permits of a given type within a radius of a point
-def permit_count(radius, permit_type, input_point, gdf):
-    """
-    Count of a given permit_type within a circle of a given radius from the input_point.
-    """
-    distances = gdf['geometry'].apply(lambda x: distance(input_point, (x.y, x.x)).meters)
-    nearby_gdf = gdf[distances <= radius]
-    permit_counts = nearby_gdf['PERMIT_SUBTYPE_NAME'].value_counts()
-    if permit_type in permit_counts:
-        return permit_counts[permit_type]
-    else:
-        return 0
+## NOISE SCORE SECTION
 
+# Green marker indicates the inputted address
+# Red markers indicate the permits within the given radius
+center = (input_point[0], input_point[1])
+map = folium.Map(location=center, zoom_start=16)
+folium.Marker(location=center, icon=folium.Icon(color='green')).add_to(map)
+radius_m = 200 * 0.3048
+circle = folium.Circle(location=center, radius=radius_m, color='blue', fill_opacity=0.2)
+circle.add_to(map)
+for _, row in nearby_gdf.iterrows():
+    folium.Marker(location=[row['LATITUDE'], row['LONGITUDE']], icon=folium.Icon(color='red')).add_to(map)
+map
 
+#%%
+# NEIGHBORHOOD SCORE
+
+distances = gdf['geometry'].apply(lambda x: distance(input_point, (x.y, x.x)).feet)
+nearby_gdf = gdf[distances <= 800]
+permit_counts = nearby_gdf["PERMIT_SUBTYPE_NAME"].value_counts()
+print("The permits within a radius of 500 feet from your property include: \n", permit_counts.to_string(header=False))
+
+## NOISE SCORE SECTION
+
+# Green marker indicates the inputted address
+# Red markers indicate the permits within the given radius
+center = (input_point[0], input_point[1])
+map = folium.Map(location=center, zoom_start=16)
+folium.Marker(location=center, icon=folium.Icon(color='green')).add_to(map)
+radius_m = 800 * 0.3048
+circle = folium.Circle(location=center, radius=radius_m, color='blue', fill_opacity=0.2)
+circle.add_to(map)
+for _, row in nearby_gdf.iterrows():
+    folium.Marker(location=[row['LATITUDE'], row['LONGITUDE']], icon=folium.Icon(color='red')).add_to(map)
+map
+
+# %%
+### ANNEX A
+## VERY LOUD 
+# BUILDING
+# DEMOLITION
+# GARAGE
+# SPECIAL BUILDING
+# EXCAVATION ONLY
+# NEW BUILDING
+# SHEETING AND SHORING
+# FOUNDATION ONLY
+# RAZE
+# CIVIL PLANS
+#
+## LOUD
+# PLUMBING AND GAS
+# TENANT LAYOUT
+# ALTERATION AND REPAIR
+# ELEVATOR - ALTERATION
+# ELEVATOR - NEW
+# ELEVATOR - REPAIR
+# ADDITION ALTERATION REPAIR
+# DECK
+# RETAINING WALL
+# PLUMBING
+# SWIMMING POOL
+#
+## SOME NOISE
+#
+# ELECTRICAL
+# MECHANICAL
+# ELECTRICAL - GENERAL
+# EXPEDITED
+# FENCE
+# BOILER
+# GAS FITTING
+# SOLAR SYSTEM
+# ELECTRICAL - HEAVY UP
+# PLUMBING
+# VARIANCE
+# SHED
+# MISCELLANEOUS
+#
+## NO NOISE
+# SIGN
+# AWNING
 
 
 # %%
