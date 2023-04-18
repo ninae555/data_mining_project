@@ -3,4 +3,15 @@ numpy
 seaborn
 matplotlib
 scikit-learn
+folium==0.14.0
+geopandas
+shapely
+holoviews
+datashader
+hvplot
+colorcet
+pyviz
+geoviews
+
+
 -e .
