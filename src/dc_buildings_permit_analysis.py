@@ -1034,25 +1034,28 @@ grid = grid.to_crs({"init": "epsg:4326"})
 
 # %%
 
-
-
 threshold = grid["construction_count"].quantile(0.75)
 grid["high_construction"] = (grid["construction_count"] > threshold).astype(
     int
 )
+threshold = grid['construction_count'].quantile(0.75)
+grid['high_prob'] = grid['construction_count'] >= threshold
 
+
+# %%
 # Split the dataset into training and testing sets
-X = grid.drop(columns=["construction_count", "high_construction", "geometry"])
-y = grid["high_construction"]
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42
-)
+X = grid.drop(columns=['construction_count', 'high_construction', 'geometry'])
+y = grid['high_construction']
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
+
+# %%
 # Train a logistic regression model
 clf = LogisticRegression()
 clf.fit(X_train, y_train)
 
 
+# %%
 # Make predictions on the testing set
 y_pred = clf.predict(X_test)
 
@@ -1079,6 +1082,7 @@ plt.ylabel("True")
 plt.show()
 
 
+# %%
 
 # Create a GeoDataFrame with the test data and the predicted values
 test_gdf = grid.loc[X_test.index].copy()
@@ -1109,3 +1113,21 @@ scores = cross_val_score(clf, X, y, cv=5, scoring="f1")
 # Print the mean and standard deviation of the F1 scores
 print(f"Mean F1 Score: {scores.mean():.2f}")
 print(f"Standard Deviation: {scores.std():.2f}")
+
+# %%
+
+# Create a GeoDataFrame with the test data and the predicted values
+test_gdf = grid.loc[X_test.index].copy()
+test_gdf['predicted_high_construction'] = y_pred
+
+# Plot the true and predicted high construction areas
+fig, ax = plt.subplots(1, 2, figsize=(20, 10))
+
+test_gdf.plot(column='high_construction', cmap='coolwarm', legend=True, ax=ax[0])
+ax[0].set_title('True High Construction Areas')
+
+test_gdf.plot(column='predicted_high_construction', cmap='coolwarm', legend=True, ax=ax[1])
+ax[1].set_title('Predicted High Construction Areas')
+
+plt.show()
+# %%
